@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --border: #E8E4DC;
+    --text: #1A1814;
+    --muted: #8A8478;
+    --accent: #2B5CE6;
+    --accent-light: #EEF2FD;
+    --positive: #1A7A4A;
+    --negative: #C53030;
+    --tag-bg: #F0EDE7;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .header-meta {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* LAYOUT */
+  .shell {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    min-height: calc(100vh - 64px);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 64px;
+    height: calc(100vh - 64px);
+    overflow: hidden;
+  }
+
+  .search-wrap {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search-box {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-box:focus { border-color: var(--accent); }
+  .search-box::placeholder { color: var(--muted); }
+
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-btn.active, .filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .country-count {
+    padding: 10px 20px 6px;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .country-list {
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .country-list::-webkit-scrollbar { width: 4px; }
+  .country-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .country-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    animation: fadeSlide 0.2s ease both;
+  }
+
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .country-item:hover { background: var(--bg); }
+  .country-item.active { background: var(--accent-light); border-left: 3px solid var(--accent); }
+
+  .flag {
+    font-size: 24px;
+    width: 32px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .country-info { flex: 1; min-width: 0; }
+
+  .country-name {
+    font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .country-region {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  /* MAIN */
+  main {
+    padding: 40px;
+    overflow-y: auto;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
+    text-align: center;
+    animation: fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .empty-globe {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+  }
+
+  .empty-state h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .empty-state p { color: var(--muted); font-size: 15px; }
+
+  /* PROFILE */
+  .profile { animation: profileIn 0.3s ease; }
+
+  @keyframes profileIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .profile-hero {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 36px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-flag { font-size: 64px; line-height: 1; }
+
+  .profile-titles { flex: 1; }
+
+  .profile-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 42px;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 6px;
+  }
+
+  .profile-subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .profile-subtitle span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--tag-bg);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+
+  /* STATS GRID */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 16px;
+    margin-top: 32px;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+
+  .stat-card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    transform: translateY(-2px);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* DATA SECTIONS */
+  .data-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .data-section h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+
+  .data-row:last-child { border-bottom: none; }
+
+  .data-row-label { color: var(--muted); }
+  .data-row-value { font-weight: 500; }
+
+  /* INDICATORS LIST */
+  .indicator-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .indicator-list::-webkit-scrollbar { width: 4px; }
+  .indicator-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .indicator-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--bg);
+    border-radius: 8px;
+    font-size: 13px;
+    gap: 12px;
+  }
+
+  .indicator-name { color: var(--muted); flex: 1; }
+  .indicator-id { font-family: monospace; font-size: 11px; color: var(--accent); background: var(--accent-light); padding: 2px 6px; border-radius: 4px; }
+
+  /* ADD DATA */
+  .add-data-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    margin-top: 24px;
+  }
+
+  .add-data-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 32px;
+    width: 480px;
+    max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    animation: modalIn 0.25s ease;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .modal p { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+
+  .modal label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+
+  .modal input, .modal select, .modal textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .modal input:focus, .modal select:focus, .modal textarea:focus { border-color: var(--accent); }
+
+  .modal textarea { resize: vertical; min-height: 80px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+    justify-content: flex-end;
+  }
+
+  .btn-secondary {
+    padding: 10px 20px;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text);
+    transition: background 0.15s;
+  }
+
+  .btn-secondary:hover { background: var(--border); }
+
+  .btn-primary {
+    padding: 10px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .btn-primary:hover { opacity: 0.9; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--text);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 300;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* NO RESULTS */
+  .no-results {
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">World<span>Explorer</span></div>
+  <div class="header-meta">Powered by World Bank Open Data</div>
+</header>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="search-wrap">
+      <input type="text" class="search-box" placeholder="Search countries..." id="searchInput">
+      <div class="filter-row" id="filterRow">
+        <button class="filter-btn active" data-region="all">All</button>
+      </div>
+    </div>
+    <div class="country-count" id="countLabel">Loading...</div>
+    <div class="country-list" id="countryList"></div>
+  </aside>
+
+  <main id="main">
+    <div class="empty-state">
+      <div class="empty-globe">🌍</div>
+      <h2>Select a Country</h2>
+      <p>Choose any country from the sidebar to explore its profile, data, and indicators.</p>
+    </div>
+  </main>
+</div>
+
+<!-- Add Data Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>Add Custom Data</h3>
+    <p>Attach additional data points to this country profile.</p>
+    <label>Data Category</label>
+    <select id="dataCategory">
+      <option>Economy</option>
+      <option>Demographics</option>
+      <option>Environment</option>
+      <option>Health</option>
+      <option>Education</option>
+      <option>Technology</option>
+      <option>Other</option>
+    </select>
+    <label>Label</label>
+    <input type="text" id="dataLabel" placeholder="e.g. Internet Penetration Rate">
+    <label>Value</label>
+    <input type="text" id="dataValue" placeholder="e.g. 87.4%">
+    <label>Source (optional)</label>
+    <input type="text" id="dataSource" placeholder="e.g. ITU 2024">
+    <label>Notes (optional)</label>
+    <textarea id="dataNotes" placeholder="Any additional context..."></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveCustomData()">Save Data Point</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────
+let allCountries = [];
+let filteredCountries = [];
+let selectedCountry = null;
+let customData = {}; // { iso2: [{category, label, value, source, notes}] }
+let activeRegion = 'all';
+
+// Flag emoji helper
+function countryCodeToFlag(code) {
+  if (!code || code.length !== 2) return '🌐';
+  return code.toUpperCase().split('').map(c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)).join('');
+}
+
+// ─── LOAD DATA ───────────────────────────────────────
+async function loadData() {
+  try {
+    // Try to load local worldbank_data.json
+    const res = await fetch('worldbank_data.json');
+    const data = await res.json();
+    processCountries(data.countries);
+  } catch(e) {
+    // Fallback: fetch from World Bank API directly
+    console.log('Local file not found, fetching from API...');
+    try {
+      const res = await fetch('https://api.worldbank.org/v2/country?format=json&per_page=300');
+      const data = await res.json();
+      processCountries(data[1]);
+    } catch(err) {
+      useSampleData();
+    }
+  }
+}
+
+function processCountries(countries) {
+  // Filter to real countries (not aggregates) — they have a capitalCity
+  allCountries = countries
+    .filter(c => c.capitalCity && c.capitalCity.trim() !== '')
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Build region filter buttons
+  const regions = [...new Set(allCountries.map(c => c.region?.value).filter(Boolean))].sort();
+  const filterRow = document.getElementById('filterRow');
+  regions.forEach(region => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.dataset.region = region;
+    btn.textContent = region.split(' ')[0]; // shorten
+    btn.title = region;
+    btn.addEventListener('click', () => setRegion(region, btn));
+    filterRow.appendChild(btn);
+  });
+
+  filteredCountries = [...allCountries];
+  renderList();
+}
+
+function useSampleData() {
+  // Small fallback sample so the UI still works
+  allCountries = [
+    { id: 'US', iso2Code: 'US', name: 'United States', capitalCity: 'Washington D.C.', region: { value: 'North America' }, incomeLevel: { value: 'High income' }, lendingType: { value: 'Not classified' } },
+    { id: 'DE', iso2Code: 'DE', name: 'Germany', capitalCity: 'Berlin', region: { value: 'Europe & Central Asia' }, incomeLevel: { value: 'High income' }, lendingType: { value: 'Not classified' } },
+    { id: 'JP', iso2Code: 'JP', name: 'Japan', capitalCity: 'Tokyo', region: { value: 'East Asia & Pacific' }, incomeLevel: { value: 'High income' }, lendingType: { value: 'Not classified' } },
+    { id: 'BR', iso2Code: 'BR', name: 'Brazil', capitalCity: 'Brasília', region: { value: 'Latin America & Caribbean' }, incomeLevel: { value: 'Upper middle income' }, lendingType: { value: 'IBRD' } },
+    { id: 'IN', iso2Code: 'IN', name: 'India', capitalCity: 'New Delhi', region: { value: 'South Asia' }, incomeLevel: { value: 'Lower middle income' }, lendingType: { value: 'IBRD' } },
+    { id: 'NG', iso2Code: 'NG', name: 'Nigeria', capitalCity: 'Abuja', region: { value: 'Sub-Saharan Africa' }, incomeLevel: { value: 'Lower middle income' }, lendingType: { value: 'IDA' } },
+  ];
+  filteredCountries = [...allCountries];
+  document.getElementById('filterRow').innerHTML = '<button class="filter-btn active" data-region="all">All</button>';
+  document.getElementById('filterRow').querySelector('button').addEventListener('click', () => setRegion('all'));
+  renderList();
+  showToast('Using sample data — place worldbank_data.json in the same folder to load full dataset');
+}
+
+// ─── RENDER LIST ─────────────────────────────────────
+function renderList() {
+  const list = document.getElementById('countryList');
+  const label = document.getElementById('countLabel');
+
+  list.innerHTML = '';
+  label.textContent = `${filteredCountries.length} countries`;
+
+  if (filteredCountries.length === 0) {
+    list.innerHTML = '<div class="no-results">No countries found</div>';
+    return;
+  }
+
+  filteredCountries.forEach((country, i) => {
+    const item = document.createElement('div');
+    item.className = 'country-item' + (selectedCountry?.id === country.id ? ' active' : '');
+    item.style.animationDelay = `${Math.min(i * 8, 200)}ms`;
+    item.innerHTML = `
+      <div class="flag">${countryCodeToFlag(country.iso2Code)}</div>
+      <div class="country-info">
+        <div class="country-name">${country.name}</div>
+        <div class="country-region">${country.region?.value || 'Unknown region'}</div>
+      </div>
+    `;
+    item.addEventListener('click', () => selectCountry(country));
+    list.appendChild(item);
+  });
+}
+
+// ─── FILTER & SEARCH ─────────────────────────────────
+function setRegion(region, btn) {
+  activeRegion = region;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  else document.querySelector('[data-region="all"]')?.classList.add('active');
+  applyFilters();
+}
+
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+function applyFilters() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  filteredCountries = allCountries.filter(c => {
+    const matchRegion = activeRegion === 'all' || c.region?.value === activeRegion;
+    const matchSearch = c.name.toLowerCase().includes(query) || (c.capitalCity || '').toLowerCase().includes(query);
+    return matchRegion && matchSearch;
+  });
+  renderList();
+}
+
+document.getElementById('filterRow').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  const region = btn.dataset.region;
+  setRegion(region, btn);
+});
+
+// ─── SELECT COUNTRY ───────────────────────────────────
+function selectCountry(country) {
+  selectedCountry = country;
+  document.querySelectorAll('.country-item').forEach(el => el.classList.remove('active'));
+  event?.currentTarget?.classList.add('active');
+  renderProfile(country);
+  renderList(); // re-render to update active state
+}
+
+function renderProfile(c) {
+  const extra = customData[c.iso2Code] || [];
+  const groupedExtra = {};
+  extra.forEach(d => {
+    if (!groupedExtra[d.category]) groupedExtra[d.category] = [];
+    groupedExtra[d.category].push(d);
+  });
+
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="profile">
+      <div class="profile-hero">
+        <div class="profile-flag">${countryCodeToFlag(c.iso2Code)}</div>
+        <div class="profile-titles">
+          <div class="profile-name">${c.name}</div>
+          <div class="profile-subtitle">
+            <span>🏛 ${c.capitalCity || 'N/A'}</span>
+            <span>🌍 ${c.region?.value || 'N/A'}</span>
+          </div>
+          <div>
+            <span class="tag">${c.incomeLevel?.value || 'N/A'}</span>
+            ${c.lendingType?.value && c.lendingType.value !== 'Not classified' ? `<span class="tag">${c.lendingType.value}</span>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">ISO Code</div>
+          <div class="stat-value">${c.iso2Code || c.id}</div>
+          <div class="stat-sub">2-letter country code</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Region</div>
+          <div class="stat-value" style="font-size:18px">${c.region?.value || '—'}</div>
+          <div class="stat-sub">World Bank classification</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Income Level</div>
+          <div class="stat-value" style="font-size:18px">${c.incomeLevel?.value || '—'}</div>
+          <div class="stat-sub">Economic classification</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Lending Type</div>
+          <div class="stat-value" style="font-size:18px">${c.lendingType?.value || '—'}</div>
+          <div class="stat-sub">World Bank lending category</div>
+        </div>
+      </div>
+
+      ${Object.keys(groupedExtra).length > 0 ? Object.entries(groupedExtra).map(([cat, items]) => `
+        <p class="section-label">${cat}</p>
+        <div class="data-section">
+          <h3>${cat} Data</h3>
+          ${items.map(d => `
+            <div class="data-row">
+              <span class="data-row-label">${d.label}${d.source ? ` <small style="font-size:10px">(${d.source})</small>` : ''}</span>
+              <span class="data-row-value">${d.value}</span>
+            </div>
+          `).join('')}
+        </div>
+      `).join('') : ''}
+
+      <button class="add-data-btn" onclick="openModal()">
+        + Add Data Point
+      </button>
+    </div>
+  `;
+}
+
+// ─── MODAL ───────────────────────────────────────────
+function openModal() {
+  document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('dataLabel').focus();
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  ['dataLabel','dataValue','dataSource','dataNotes'].forEach(id => document.getElementById(id).value = '');
+}
+
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+});
+
+function saveCustomData() {
+  if (!selectedCountry) return;
+  const label = document.getElementById('dataLabel').value.trim();
+  const value = document.getElementById('dataValue').value.trim();
+  if (!label || !value) { showToast('Please fill in at least Label and Value'); return; }
+
+  const entry = {
+    category: document.getElementById('dataCategory').value,
+    label,
+    value,
+    source: document.getElementById('dataSource').value.trim(),
+    notes: document.getElementById('dataNotes').value.trim(),
+  };
+
+  const code = selectedCountry.iso2Code;
+  if (!customData[code]) customData[code] = [];
+  customData[code].push(entry);
+
+  closeModal();
+  renderProfile(selectedCountry);
+  showToast(`Data point saved to ${selectedCountry.name}`);
+}
+
+// ─── TOAST ───────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── INIT ────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
